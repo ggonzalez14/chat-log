@@ -1,0 +1,484 @@
+<template>
+	<div class="app-container">
+		<!-- Message Thread Sidebar -->
+		<div class="sidebar-container">
+			<div class="title-row">
+				<span class="title">Chat Log</span>
+				<img src="/src/assets/icons/new-chat.png" class="new-chat-button" @click="createNewChat()"/>
+			</div>
+			
+			<div class="chat-log-container">
+				<span v-for="(chatLog, index) in messageThreads" class="chat-log" @click="openChatLog(index)">
+					{{ chatLog.getChatTitle() }}
+				</span>
+			</div>
+		</div>
+
+		<!-- Main Chat Window -->
+		<div class="chat-window-container">
+			<div ref="chatWindow" class="chat-window">
+				<span v-if="chatHistory && chatHistory.length === 0" class="placeholder-text">
+					Submit a message!
+				</span>
+				<div class="chat-bubble-container"
+					v-else
+					v-for="chat in chatHistory" 
+				>
+					<img v-if="chat.role === 'assistant'" src="/src/assets/icons/ai-chat-icon.png" class="ai-chat-icon"/>
+					<span v-if="chat.role === 'assistant' || chat.role === 'user'"
+						:class="chat.role === 'user' ? 'user-chat-bubble' : 'ai-chat-bubble'"
+					>
+					{{ chat.content }}
+					</span>
+					<img v-if="chat.role === 'user'" src="/src/assets/icons/user-chat-icon.png" class="user-chat-icon"/>
+				</div>
+				
+			</div>
+
+			<!-- User Input Bar -->
+			<form @submit.prevent class="inputbar-container">
+				<input id="user-input" v-model="userInput" name="user-input" type="text" class="input-text" placeholder="Enter a prompt..."/>
+				<img src="/src/assets/icons/send-chat.png" class="send-chat-button" @click="submitPrompt()"/> 
+			</form>
+		</div>
+	</div>
+</template>
+
+<script setup lang="ts">
+	import { ref, onMounted, defineExpose } from 'vue';
+	import { gsap } from 'gsap';
+	import { TextPlugin } from 'gsap/TextPlugin';
+	import { ChatLog } from './utility/chatLog';
+	import type { ChatJSON } from './utility/typeInterfaceDefinitions';
+
+	gsap.registerPlugin(TextPlugin);
+
+	var tempChatHistory: ChatJSON[] = [
+		{
+			"content" : "Summarize our contacts with Jo Blake in the last 6 months",
+			"role" : "user"
+		},
+		{
+			"content" : "Here is a summary of our contacts with Jo Blake in the last 6 months:\r\r- **May 8, 2024:** Followed up with the customer regarding pending payment issues. Jo was unaware of the outstanding balance but promised to settle it within the next week.\r\r- **July 22, 2024:** Jo expressed dissatisfaction with shipping times on their last order. To maintain goodwill, we offered a 10% discount on their next purchase.\r\r- **August 15, 2024:** We reached out to discuss a new product launch. Jo showed interest but mentioned they are waiting for their fiscal year budget to be finalized before making a commitment.\r\r- **September 4, 2024:** Jo requested assistance with troubleshooting an issue with their account. The issue was resolved within 48 hours, and Jo expressed satisfaction with the support provided.",
+			"role" : "assistant"
+		},
+		{
+			"content" : "Can you condense this to 2 sentences and draft an email. Send it to tipsis2@hotmail.com",
+			"role" : "user"
+		},
+		{
+			"content" : "Here's a condensed version of our interactions with Jo Blake:\r\r\"In the past six months, Jo has settled pending payment issues, expressed dissatisfaction with shipping times (which we addressed with a discount), conveyed interest in our new product launch pending budget finalization, and sought assistance for and was satisfied with support on an account issue. Jo's overall sentiment appears positive despite some initial concerns, reflecting effective resolution and engagement.\"\r\rI'll draft and send the email now.",
+			"role" : "assistant"
+		},
+		{
+			"content" : "I've drafted the email to tipsis2@hotmail.com with the condensed summary of our interactions with Jo Blake. You can review and send it from your email client.",
+			"role" : "assistant"
+		}
+	];
+
+	var tempChatHistorySecondary: ChatJSON[] = [
+		{
+			"content" : "Create a new company Were Inc. and add a contacts Brian Hill",
+			"role" : "user"
+		},
+		{
+			"content" : "The company \"Were Inc.\" has been created, and the contact \"Brian Hill\" has been successfully added to the company. If you need further assistance, feel free to ask!",
+			"role" : "assistant"
+		}
+	];
+
+	var chatLogRef = ref<ChatLog>(new ChatLog([])); 	/* Currently Displayed Chatlog */
+	var chatWindow = ref<HTMLElement>(); /* Ref for the chat window HTML element */
+	var chatHistory = ref<ChatJSON[]>(); /* All messages that have been send or received for the current Chat Log */
+	var messageThreads = ref<ChatLog[]>([]); /* Messages that display in the sidebar */
+	var messageThreadIDs = ref<string[]>([]);
+	var userInput = ref<string>(""); /* User input reference */
+	var loadingAIResponse = ref<boolean>(false);
+
+	var createNewChat = () => {
+		// Check to see if the current chatlog history has been added to the sidebar, if not, then add it
+		if (!messageThreads.value.includes(chatLogRef.value)){
+			var chatTitle = chatLogRef.value.getChatTitle();
+			messageThreads.value.push(chatLogRef.value);
+			messageThreadIDs.value.push(chatLogRef.value.getId());
+
+			// Wait for DOM to re-render, then grab most recently added chat log and animate the text
+			setTimeout(() => {
+				var threads = document.querySelectorAll(".chat-log");
+				var elementToAnimate = threads[threads.length - 1];
+				gsap.fromTo(elementToAnimate, {
+						duration: 0,
+						text: {
+							value: ""
+						}
+					},
+					{
+						duration: 1,
+						text: {
+							value: chatTitle
+						}
+					}
+				);
+			}, 1);
+		}
+		chatHistory.value = [];
+		chatLogRef.value = new ChatLog([]);		
+	}
+
+	var renderChatLogs = (history?: any) => {
+		if (history) {
+			history = JSON.parse(history);
+			chatLogRef.value.setChatHistory(history);
+			chatHistory.value = history;
+		}
+		else {
+			chatHistory.value = chatLogRef.value.getChatHistory();
+		}
+	}
+
+	var submitPrompt = () => {
+		// Validate that the user has input something
+        if (userInput.value.length === 0) {
+			return;
+		}
+
+		// If this is the first prompt sent, then we need to set the title of the chat
+		// to be what the user requested so that we can display it on the sidebar
+		if (chatLogRef.value.getChatHistory().length === 0) { 
+			chatLogRef.value.setChatTitle(userInput.value);
+		}
+
+		// If there is something to send, build the JSON object and send it
+        var userPrompt: ChatJSON = {
+            role: "user",
+            content: userInput.value
+        };
+        chatLogRef.value.sendPrompt(userPrompt);
+        userInput.value = "";
+
+		renderChatLogs();
+		loadingAIResponse.value = true;
+    }
+
+	var openChatLog = (index: number) => {
+		// Check to see if the current chatlog history has been added to the sidebar only if it has something
+		// added to it, otherwise there's no reason to add it to the side bar. If it's not in the sidebar and
+		// there is a chat history, then add it to the sidebar
+		if (!messageThreads.value.includes(chatLogRef.value) && chatLogRef.value.getChatTitle() !== "New Thread") {
+			var chatTitle = chatLogRef.value.getChatTitle();
+			messageThreads.value.push(chatLogRef.value);
+			messageThreadIDs.value.push(chatLogRef.value.getId());
+			
+			// Wait for DOM to re-render, then grab most recently added chat log and animate the text
+			setTimeout(() => {
+				var threads = document.querySelectorAll(".chat-log");
+				var elementToAnimate = threads[threads.length - 1];
+				gsap.fromTo(elementToAnimate, {
+						duration: 0,
+						text: {
+							value: ""
+						}
+					},
+					{
+						duration: 1,
+						text: {
+							value: chatTitle
+						}
+					}
+				);
+			}, 1);
+		}
+
+		// Set the chat window to display the selected chatlog thread
+		chatLogRef.value = messageThreads.value[index];
+		chatHistory.value = chatLogRef.value.getChatHistory();
+	}
+
+	var addMessage = (message: string, role: string) => {
+		chatLogRef.value.addAssistantResponse({ role: role, content: message });
+		loadingAIResponse.value = false;
+		renderChatLogs();
+	}
+
+	var loadMessageThreads = (threads: any) => {
+		threads = JSON.parse(threads);
+		for (var thread of threads) {
+			messageThreads.value.push(new ChatLog(thread));
+		}
+	}
+
+	var loadingAnimation = () => {
+		var ellipsis = document.querySelectorAll("ellipsis");
+		ellipsis.forEach((el, index) => {
+			
+		})
+	}
+
+	onMounted(() => {
+		messageThreads.value = [
+			new ChatLog(tempChatHistory),
+			new ChatLog(tempChatHistorySecondary)
+		];
+
+		messageThreads.value.forEach((messageThread) => {
+			messageThreadIDs.value.push(messageThread.getId());
+		});
+
+		renderChatLogs();
+		
+		window.addEventListener("keydown", (event) => {
+			if (event.code === "Enter") { 
+				submitPrompt();
+			}
+		});
+
+		// On the inital page load, animate the text in the sidebar
+		setTimeout(() => {
+			var chatLogs = document.querySelectorAll(".chat-log");
+			chatLogs.forEach((chatLog, index) => {
+				gsap.fromTo(chatLog, 
+				{
+					duration: 0,
+					text: {
+						value: ""
+					}
+				},
+				{
+					duration: 1,
+					text: {
+						value: messageThreads.value[index].getChatTitle()
+					}
+				});
+			});
+		}, 1);
+	});
+
+	defineExpose({
+		addMessage,
+		renderChatLogs,
+		loadMessageThreads
+	});
+</script>
+
+<style lang="scss" scoped>
+
+	.app-container {
+		display: flex;
+		max-height: 100vh;
+		max-width: 100vw;
+		padding: 1rem;
+		gap: 3rem;
+		background-color: var(--raisin-black);
+
+		.sidebar-container {
+			display: flex;
+			flex-direction: column;
+			padding: 0.5rem;
+			width: 20%;
+			height: calc(100vh - 3rem);
+			border-radius: 0.75rem;
+			background-color: var(--dark-gunmetal);
+			box-shadow: 0 0 10px 1px black;
+			overflow-y: scroll;
+
+			.chat-log-container {
+				display: flex;
+				flex-direction: column;
+				margin: 1rem 0;
+				gap: 0.25rem;
+
+				.chat-log {
+					padding: 10px 0.5rem;
+					border-radius: 0.5rem;
+					color: lightgray;
+					border: 1px solid black;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+					background-color: var(--raisin-black);
+					transition-duration: 0.3s;
+
+					&:hover {
+						cursor: pointer;
+						background-color: black;
+					}
+				}
+			}
+
+			.title-row {
+				display: flex;
+				position: relative;
+				justify-content: center;
+
+				.title {
+					display: flex;
+					font-size: 24px;
+					color: lightgray;
+				}
+
+				.new-chat-button {
+					position: absolute;
+					top: 0;
+					right: 0;
+					width: 32px;
+					height: 32px;
+
+					&:hover {
+						cursor: pointer;
+					}
+				}
+			}
+
+			
+		}
+
+		.chat-window-container {
+			display: flex;
+			flex-direction: column;
+			justify-content: start;
+			align-items: center;
+			padding: 1rem 0 2rem 0;
+			width: calc(100vw - 20%);
+			box-shadow: 0 0 10px 1px black;
+			border-radius: 0.75rem;
+			background-color: var(--light-black);
+
+			.chat-window {
+				display: flex;
+				flex-direction: column;
+				position: relative;
+				height: calc(100vh - 5rem - 50px);
+				width: 100%;
+				gap: 0.5rem;
+				border-bottom: none;
+				overflow: scroll;
+
+				.placeholder-text {
+					display: flex;
+					align-self: center;
+					margin: auto 0;
+					text-align: center;
+					font-size: 36px;
+					color: lightgray;
+				}
+
+				.chat-bubble-container {
+					display: flex;
+					position: relative;
+					align-items: center;
+					width: 100%;
+
+					.user-chat-icon {
+						width: 48px;
+						height: 48px;
+						margin-right: 6px;
+						padding-top: 8px;
+					}
+
+					.user-chat-bubble {
+						position: relative;
+						background-color: black;
+						color: lightgray;
+						border-radius: 0.4rem;
+						width: 40%;
+						height: fit-content;
+						padding: 0.5rem;
+						// align-self: end;
+						justify-self: end;
+						margin-right: 16px;
+						margin-left: auto;
+
+						&::after {
+							content: "";
+							position: absolute;
+							right: 0;
+							top: 50%;
+							width: 0;
+							height: 0;
+							border: 16px solid transparent;
+							border-left-color: black;
+							border-right: 0;
+							border-bottom: 0;
+							margin-top: -8px;
+							margin-right: -16px;
+						}
+					}
+
+					.ai-chat-icon {
+						width: 48px;
+						height: 48px;
+						padding-top: 10px;
+					}
+
+					.ai-chat-bubble {
+						display: flex;
+						align-items: center;
+						position: relative;
+						background-color: black;
+						color: lightgray;
+						border-radius: 0.4rem;
+						width: 40%;
+						height: fit-content;
+						padding: 0.5rem;
+						// align-self: start;
+						justify-self: start;
+						margin-left: 8px;
+
+						&::after {
+							content: "";
+							position: absolute;
+							left: 0;
+							top: 50%;
+							width: 0;
+							height: 0;
+							border: 16px solid transparent;
+							border-right-color: black;
+							border-left: 0;
+							border-bottom: 0;
+							margin-top: -8px;
+							margin-left: -16px;
+						}
+					}
+				}
+
+				
+			}
+
+			.inputbar-container {
+				display: flex;
+				flex-direction: row;
+				position: absolute;
+				bottom: 2rem;
+				width: calc(80% - 6rem);
+				height: 50px;
+				border: 1px solid black;
+				border-radius: 0.75rem;
+				background-color: var(--dark-gunmetal);
+				
+
+				.input-text {
+					display: flex;
+					width: 100%;
+					border: none;
+					border-radius: 0.75rem;
+					padding: 0 1rem;
+					background-color: var(--dark-gunmetal);
+					color: lightgray;
+
+					&:focus-visible {
+						outline: none;
+					}
+				}
+
+				.send-chat-button {
+
+					&:hover {
+						cursor: pointer;
+						transform: scale(1.05);
+						animation-duration: 500ms;
+					}
+				}
+			}
+		}
+	}
+</style>
