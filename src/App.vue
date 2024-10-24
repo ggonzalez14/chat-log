@@ -24,14 +24,21 @@
 					v-else
 					v-for="chat in chatHistory" 
 				>
-					<img v-if="chat.role === 'assistant'" src="/src/assets/icons/ai-chat-icon.png" class="ai-chat-icon"/>
-					<span v-if="chat.role === 'assistant' || chat.role === 'user'"
+					
+					<img v-if="chat.role === 'assistant' || chat.role === 'loading'" src="/src/assets/icons/ai-chat-icon.png" class="ai-chat-icon"/>
+					<span v-if="chat.role === 'assistant' || chat.role === 'user'  || chat.role === 'loading'"
 						:class="chat.role === 'user' ? 'user-chat-bubble' : 'ai-chat-bubble'"
 					>
-					{{ chat.content }}
+						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
+						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
+						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
+						<span v-if="chat.role === 'user' || chat.role === 'assistant'">
+							{{ chat.content }}
+						</span>
 					</span>
 					<img v-if="chat.role === 'user'" src="/src/assets/icons/user-chat-icon.png" class="user-chat-icon"/>
 				</div>
+				
 				
 			</div>
 
@@ -119,11 +126,16 @@
             role: "user",
             content: userInput.value
         };
+		loadingAIResponse.value = true;
         chatLogRef.value.sendPrompt(userPrompt);
+		chatLogRef.value.addAssistantResponse({content: "...", role: "loading"}, loadingAIResponse.value);
         userInput.value = "";
 
 		renderChatLogs();
-		loadingAIResponse.value = true;
+		
+		setTimeout(() => {
+			loadingAnimation();
+		}, 100);
     }
 
 	var openChatLog = (index: number) => {
@@ -174,10 +186,17 @@
 	}
 
 	var loadingAnimation = () => {
-		var ellipsis = document.querySelectorAll("ellipsis");
-		ellipsis.forEach((el, index) => {
-			
+		var tl = gsap.timeline({ repeat: -1 });
+		tl.to(".ellipsis", {
+			y: -2,
+			stagger: 0.1,
+			duration: 0.2
 		})
+		.to(".ellipsis", {
+			y: 0,
+			stagger: 0.1,
+			duration: 0.2
+		});
 	}
 
 	onMounted(() => {
@@ -285,8 +304,6 @@
 					}
 				}
 			}
-
-			
 		}
 
 		.chat-window-container {
@@ -337,10 +354,9 @@
 						background-color: black;
 						color: lightgray;
 						border-radius: 0.4rem;
-						width: 40%;
+						max-width: 40%;
 						height: fit-content;
 						padding: 0.5rem;
-						// align-self: end;
 						justify-self: end;
 						margin-right: 16px;
 						margin-left: auto;
@@ -374,10 +390,9 @@
 						background-color: black;
 						color: lightgray;
 						border-radius: 0.4rem;
-						width: 40%;
+						max-width: 40%;
 						height: fit-content;
 						padding: 0.5rem;
-						// align-self: start;
 						justify-self: start;
 						margin-left: 8px;
 

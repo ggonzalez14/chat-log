@@ -48,10 +48,13 @@ export class ChatLog {
     public sendPrompt(userPrompt: ChatJSON) {
         this.chatHistory.push(userPrompt);
         // @ts-ignore
-        FileMaker.PerformScript("System - Operate Assistant", JSON.stringify({ prompt: userPrompt.content }));
+        // FileMaker.PerformScript("System - Operate Assistant", JSON.stringify({ prompt: userPrompt.content }));
     }
 
-    public addAssistantResponse(response: ChatJSON) {
+    public addAssistantResponse(response: ChatJSON, isLoading?: boolean) {
+        if (!isLoading) {
+            this.chatHistory.pop();
+        }
         this.chatHistory.push(response);
     }
 }
