@@ -53,40 +53,6 @@
 
 	gsap.registerPlugin(TextPlugin);
 
-	var tempChatHistory: ChatJSON[] = [
-		{
-			"content" : "Summarize our contacts with Jo Blake in the last 6 months",
-			"role" : "user"
-		},
-		{
-			"content" : "Here is a summary of our contacts with Jo Blake in the last 6 months:\r\r- **May 8, 2024:** Followed up with the customer regarding pending payment issues. Jo was unaware of the outstanding balance but promised to settle it within the next week.\r\r- **July 22, 2024:** Jo expressed dissatisfaction with shipping times on their last order. To maintain goodwill, we offered a 10% discount on their next purchase.\r\r- **August 15, 2024:** We reached out to discuss a new product launch. Jo showed interest but mentioned they are waiting for their fiscal year budget to be finalized before making a commitment.\r\r- **September 4, 2024:** Jo requested assistance with troubleshooting an issue with their account. The issue was resolved within 48 hours, and Jo expressed satisfaction with the support provided.",
-			"role" : "assistant"
-		},
-		{
-			"content" : "Can you condense this to 2 sentences and draft an email. Send it to tipsis2@hotmail.com",
-			"role" : "user"
-		},
-		{
-			"content" : "Here's a condensed version of our interactions with Jo Blake:\r\r\"In the past six months, Jo has settled pending payment issues, expressed dissatisfaction with shipping times (which we addressed with a discount), conveyed interest in our new product launch pending budget finalization, and sought assistance for and was satisfied with support on an account issue. Jo's overall sentiment appears positive despite some initial concerns, reflecting effective resolution and engagement.\"\r\rI'll draft and send the email now.",
-			"role" : "assistant"
-		},
-		{
-			"content" : "I've drafted the email to tipsis2@hotmail.com with the condensed summary of our interactions with Jo Blake. You can review and send it from your email client.",
-			"role" : "assistant"
-		}
-	];
-
-	var tempChatHistorySecondary: ChatJSON[] = [
-		{
-			"content" : "Create a new company Were Inc. and add a contacts Brian Hill",
-			"role" : "user"
-		},
-		{
-			"content" : "The company \"Were Inc.\" has been created, and the contact \"Brian Hill\" has been successfully added to the company. If you need further assistance, feel free to ask!",
-			"role" : "assistant"
-		}
-	];
-
 	var chatLogRef = ref<ChatLog>(new ChatLog([])); 	/* Currently Displayed Chatlog */
 	var chatWindow = ref<HTMLElement>(); /* Ref for the chat window HTML element */
 	var chatHistory = ref<ChatJSON[]>(); /* All messages that have been send or received for the current Chat Log */
@@ -215,15 +181,6 @@
 	}
 
 	onMounted(() => {
-		messageThreads.value = [
-			new ChatLog(tempChatHistory),
-			new ChatLog(tempChatHistorySecondary)
-		];
-
-		messageThreads.value.forEach((messageThread) => {
-			messageThreadIDs.value.push(messageThread.getId());
-		});
-
 		renderChatLogs();
 		
 		window.addEventListener("keydown", (event) => {
