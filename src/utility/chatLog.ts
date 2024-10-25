@@ -1,11 +1,10 @@
 import type { ChatJSON } from "./typeInterfaceDefinitions";
-import { v4 as uuidv4 } from "uuid";
 
 export class ChatLog {
     /* ---------- Private Data ---------- */
+    private id: string = "";
     private title: string = "";
     private chatHistory: ChatJSON[] = [];
-    private id: string = uuidv4();
 
     /* ---------- Public Constructor ---------- */
     constructor(chatHistory: ChatJSON[]) {
@@ -45,6 +44,11 @@ export class ChatLog {
         this.chatHistory = history;
     }
 
+    public setId(ID: string) {
+        this.id = ID;
+    }
+
+    /* ---------- Public Methods ---------- */
     public sendPrompt(userPrompt: ChatJSON) {
         this.chatHistory.push(userPrompt);
         // @ts-ignore
@@ -52,7 +56,7 @@ export class ChatLog {
     }
 
     public addAssistantResponse(response: ChatJSON, isLoading?: boolean) {
-        if (!isLoading) {
+        if (!isLoading && this.chatHistory[this.chatHistory.length - 1].role !== "user") {
             this.chatHistory.pop();
         }
         this.chatHistory.push(response);
