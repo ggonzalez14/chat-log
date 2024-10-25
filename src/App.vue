@@ -32,7 +32,7 @@
 						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
 						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
 						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
-						<span v-if="chat.role === 'user' || chat.role === 'assistant'">
+						<span v-if="chat.role === 'user' || chat.role === 'assistant'" class="ai-response">
 							{{ chat.content }}
 						</span>
 					</span>
@@ -135,6 +135,9 @@
 		
 		setTimeout(() => {
 			loadingAnimation();
+			// setTimeout(() => {
+			// 	addMessage(' Check to see if the current chatlog history has been added to the sidebar only if it has something added to it, otherwise theres no reason to add it to the side bar. If its not in the sidebar andthere is a chat history, then add it to the sidebar', 'assistant');
+			// }, 1000);
 		}, 100);
     }
 
@@ -159,6 +162,7 @@
 					},
 					{
 						duration: 1,
+						ease: "none",
 						text: {
 							value: chatTitle
 						}
@@ -176,6 +180,25 @@
 		chatLogRef.value.addAssistantResponse({ role: role, content: message });
 		loadingAIResponse.value = false;
 		renderChatLogs();
+
+		// Wait for DOM to re-render, then grab most recently added ai response and animate the text
+		setTimeout(() => {
+				var chats = document.querySelectorAll(".ai-response");
+				var elementToAnimate = chats[chats.length - 1];
+				gsap.fromTo(elementToAnimate, {
+						duration: 0,
+						text: {
+							value: ""
+						}
+					},
+					{
+						duration: 1,
+						text: {
+							value: message
+						}
+					}
+				);
+			}, 1);
 	}
 
 	var loadMessageThreads = (threads: any) => {
@@ -267,6 +290,7 @@
 					padding: 10px 0.5rem;
 					border-radius: 0.5rem;
 					color: lightgray;
+					// color: #0860C8;
 					border: 1px solid black;
 					overflow: hidden;
 					text-overflow: ellipsis;
@@ -290,6 +314,7 @@
 					display: flex;
 					font-size: 24px;
 					color: lightgray;
+					// color: #0860C8;
 				}
 
 				.new-chat-button {
@@ -334,6 +359,8 @@
 					text-align: center;
 					font-size: 36px;
 					color: lightgray;
+					// color: #0860C8;
+
 				}
 
 				.chat-bubble-container {
@@ -436,6 +463,7 @@
 					padding: 0 1rem;
 					background-color: var(--dark-gunmetal);
 					color: lightgray;
+					// color: black;
 
 					&:focus-visible {
 						outline: none;

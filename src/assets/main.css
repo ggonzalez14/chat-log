@@ -2,7 +2,9 @@
     --raisin-black: #202026;
     --dark-gunmetal: #25242A;
     --light-black: #1E1F24;
-
+    /* --raisin-black: #fff;
+    --dark-gunmetal: #fff;
+    --light-black: #fff; */
 
     * {
         margin: 0;
