@@ -32,10 +32,10 @@
 						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
 						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
 						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
-						<span v-if="chat.role === 'user' || chat.role === 'assistant'" class="ai-response">
+						<span v-if="chat.role === 'user' || ( chat.role === 'assistant' && !chat.isMermaid )" class="ai-response">
 							{{ chat.content }}
 						</span>
-						<pre v-if="chat.role === 'mermaid'" class="mermaid">
+						<pre v-if="chat.isMermaid" class="mermaid">
 							{{ chat.content }}
 						</pre>
 					</span>
@@ -57,18 +57,20 @@
 <script setup lang="ts">
 	import { ref, onMounted, defineExpose } from 'vue';
 	import { gsap } from 'gsap';
-	// import mermaid from 'mermaid';
 	import { TextPlugin } from 'gsap/TextPlugin';
 	import { ChatLog } from './utility/chatLog';
 	import type { ChatJSON } from './utility/typeInterfaceDefinitions';
+	// import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+	// import mermaid from 'mermaid';
 
-	// mermaid.initialize({ startOnLoad: true })
+	
 	gsap.registerPlugin(TextPlugin);
 
 	var chatLogRef = ref<ChatLog>(new ChatLog([]));
 	// var chatLogRef = ref<ChatLog>(new ChatLog([{
-	// 	role: "mermaid", 
-	// 	content: `sequenceDiagram\n\tparticipant Alice\n\tparticipant Bob\n\tAlice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Alice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!`
+	// 	role: "assistant", 
+	// 	content: `sequenceDiagram\n\tparticipant Alice\n\tparticipant Bob\n\tAlice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Alice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!`,
+	// 	isMermaid: true // Can be "true" or 1
 	// }])); 	/* Currently Displayed Chatlog */
 	var chatWindow = ref<HTMLElement>(); /* Ref for the chat window HTML element */
 	var chatHistory = ref<ChatJSON[]>(); /* All messages that have been send or received for the current Chat Log */
@@ -258,7 +260,7 @@
 			}
 		});
 
-		// loadMessageThreads(historicalThreads);
+		// loadMessageThreads(historicalThreads, []);
 
 		// On the inital page load, animate the text in the sidebar
 		setTimeout(() => {
