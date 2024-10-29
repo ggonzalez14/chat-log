@@ -2,11 +2,16 @@
 	<div class="app-container">
 		<!-- Message Thread Sidebar -->
 		<div class="sidebar-container">
+
+			<!-- Message thread header and create new chat button -->
 			<div class="title-row">
 				<span class="title">Chat Log</span>
 				<img src="/src/assets/icons/new-chat.png" class="new-chat-button" @click="createNewChat()"/>
 			</div>
 			
+			<!-- Loop over each message thread in the list and create a message thread element for the sidebar -->
+			<!-- Add functionality for clicking on the message thread that will open the correct one and set the -->
+			<!-- correct IDs in FileMaker as well, maintaining consistency between the webviewer and FileMaker backend -->
 			<div class="chat-log-container">
 				<span v-for="(chatLog, index) in messageThreads" class="chat-log" @click="openChatLog(index, chatLog.getId())">
 					{{ chatLog.getChatTitle() }}
@@ -17,37 +22,53 @@
 		<!-- Main Chat Window -->
 		<div class="chat-window-container">
 			<div ref="chatWindow" class="chat-window">
+
+				<!-- Show this if there is no chat history -->
 				<span v-if="chatHistory && chatHistory.length === 0" class="placeholder-text">
 					Submit a message!
 				</span>
+
+				<!-- Show this as soon as there is any kind of chat history -->
 				<div class="chat-bubble-container"
 					v-else
 					v-for="chat in chatHistory" 
 				>
-					
+					<!-- User icon on right side of chat window -->
 					<img v-if="chat.role === 'assistant' || chat.role === 'loading' || chat.role === 'mermaid'" src="/src/assets/icons/ai-chat-icon-lightgray.png" class="ai-chat-icon"/>
+
+					<!-- Probably unnecessary if statements, but just in case there is any other user role that is passed in we -->
+					<!-- will only display those that are user or AI roles (loading in the case of waiting for AI response) -->
 					<span v-if="chat.role === 'assistant' || chat.role === 'user'  || chat.role === 'loading' || chat.role === 'mermaid'"
-						:class="chat.role === 'user' ? 'user-chat-bubble' : 'ai-chat-bubble'"
+						:class="chat.role === 'user' ? 'user-chat-bubble' : chat.isMermaid ? 'ai-chat-bubble mermaid-graph-bubble' : 'ai-chat-bubble'"
 					>
+						<!-- Display bouncing ellipsis animation while waiting on AI response -->
 						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
 						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
 						<span v-if="loadingAIResponse && chat.role === 'loading'" class="ellipsis">.</span>
+
+						<!-- Once AI response has been received (or user has submitted a prompt) display this -->
 						<span v-if="chat.role === 'user' || ( chat.role === 'assistant' && !chat.isMermaid )" class="ai-response">
 							{{ chat.content }}
 						</span>
-						<pre v-if="chat.isMermaid" class="mermaid">
+
+						<!-- Display the mermaid graph if that is what is passed in via the assistant -->
+						<pre v-if="chat.isMermaid" class="mermaid mermaid-graph">
 							{{ chat.content }}
 						</pre>
 					</span>
+
+					<!-- AI icon on left side of chat window -->
 					<img v-if="chat.role === 'user'" src="/src/assets/icons/user-chat-icon-lightgray.png" class="user-chat-icon"/>
 				</div>
-				
-				
 			</div>
 
 			<!-- User Input Bar -->
 			<form @submit.prevent class="inputbar-container">
+
+				<!-- User input field -->
 				<input id="user-input" v-model="userInput" name="user-input" type="text" class="input-text" placeholder="Enter a prompt..."/>
+
+				<!-- Submit prompt button displayed as an image -->
 				<img src="/src/assets/icons/send-chat-arrow-up.png" class="send-chat-button" @click="submitPrompt()"/> 
 			</form>
 		</div>
@@ -56,28 +77,46 @@
 
 <script setup lang="ts">
 	import { ref, onMounted, defineExpose } from 'vue';
-	import { gsap } from 'gsap';
-	import { TextPlugin } from 'gsap/TextPlugin';
-	import { ChatLog } from './utility/chatLog';
-	import type { ChatJSON } from './utility/typeInterfaceDefinitions';
-	// import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-	// import mermaid from 'mermaid';
-
+	import { gsap } from 'gsap'; /* GSAP animation library, used for pretty much every animation in the code */
+	import { TextPlugin } from 'gsap/TextPlugin'; /* Plugin from GSAP that will give the "typing" animation when the AI responds */
+	import { ChatLog } from './utility/chatLog'; /* Class that holds information about each message thread / history */
+	import type { ChatJSON } from './utility/typeInterfaceDefinitions'; /* Custom JSON object definition */
 	
+	// use dynamic import for mermaid since vite + terser didn't play nice with the static import
+	(async () => {
+		// @ts-ignore
+		const { mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs").then(() => {mermaid.initialize({ startOnLoad: true })});
+	})();
 	gsap.registerPlugin(TextPlugin);
 
-	var chatLogRef = ref<ChatLog>(new ChatLog([]));
-	// var chatLogRef = ref<ChatLog>(new ChatLog([{
-	// 	role: "assistant", 
-	// 	content: `sequenceDiagram\n\tparticipant Alice\n\tparticipant Bob\n\tAlice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Alice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!`,
-	// 	isMermaid: true // Can be "true" or 1
-	// }])); 	/* Currently Displayed Chatlog */
+	
+
+	// ---------- Use the below json object as a reference on how I imagined the mermaid package would be passed in
+	// ---------- The content should just be a string utilizing \t and \n if possible. It might be fine without that too
+	/*
+
+	{
+		role: "assistant", 
+		content: `sequenceDiagram\n\tparticipant Alice\n\tparticipant Bob\n\tAlice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Alice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!`,
+		isMermaid: true // Can be "true" or 1
+	}
+	*/
+
+	/*
+	// This is for dev purposes
+	var chatLogRef = ref<ChatLog>(new ChatLog([{
+		role: "assistant", 
+		content: `sequenceDiagram\n\tparticipant Alice\n\tparticipant Bob\n\tAlice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Alice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!`,
+		isMermaid: true // Can be "true" or 1
+	}])); 	
+	*/
+	var chatLogRef = ref<ChatLog>(new ChatLog([])); /* Currently Displayed Chatlog object */
 	var chatWindow = ref<HTMLElement>(); /* Ref for the chat window HTML element */
 	var chatHistory = ref<ChatJSON[]>(); /* All messages that have been send or received for the current Chat Log */
 	var messageThreads = ref<ChatLog[]>([]); /* Messages that display in the sidebar */
 	var messageThreadIDs = ref<string[]>([]);
 	var userInput = ref<string>(""); /* User input reference */
-	var loadingAIResponse = ref<boolean>(false);
+	var loadingAIResponse = ref<boolean>(false); /* Flag that is used for the bouncing ellipsis animation */
 
 	var createNewChat = () => {
 		// Check to see if the current chatlog history has been added to the sidebar, if not, then add it
@@ -87,6 +126,7 @@
 			messageThreadIDs.value.push(chatLogRef.value.getId());
 
 			// Wait for DOM to re-render, then grab most recently added chat log and animate the text
+			// This is the "typing" animation that is activated when a chat thread is added to the sidebar
 			setTimeout(() => {
 				var threads = document.querySelectorAll(".chat-log");
 				var elementToAnimate = threads[threads.length - 1];
@@ -111,6 +151,7 @@
 		FileMaker.PerformScript("System - Update Thread ID", JSON.stringify({ threadID: "" }));
 	}
 
+	// history is an optional parameter that is there for FM purposes
 	var renderChatLogs = (history?: any) => {
 		if (history) {
 			history = JSON.parse(history);
@@ -166,6 +207,8 @@
 			messageThreadIDs.value.push(chatLogRef.value.getId());
 			
 			// Wait for DOM to re-render, then grab most recently added chat log and animate the text
+			// This is the "typing" animation that is activated when a chat thread is added to the sidebar
+			// Basically this is only activated if the current chat is a new chat and has not been added to the sidebar yet
 			setTimeout(() => {
 				var threads = document.querySelectorAll(".chat-log");
 				var elementToAnimate = threads[threads.length - 1];
@@ -198,7 +241,8 @@
 		loadingAIResponse.value = false;
 		renderChatLogs();
 
-		// Wait for DOM to re-render, then grab most recently added ai response and animate the text
+		// Wait for DOM to re-render, then grab most recently added AI response and animate the text
+		// This is the "typing" animation that is activated when an AI response is received and displayed
 		setTimeout(() => {
 				var chats = document.querySelectorAll(".ai-response");
 				var elementToAnimate = chats[chats.length - 1];
@@ -222,6 +266,9 @@
 		}, 1);
 	}
 
+	// This function is used on the initial load of the webviewer in FM. It takes the list of historical threads and
+	// their respective IDs and creates display elements / ChatLog objects to store their history. These are the objects
+	// that are initially displayed in the sidebar on first load
 	var loadMessageThreads = (threads: any, idList: any) => {
 		threads = JSON.parse(threads);
 		idList = JSON.parse(idList);
@@ -233,10 +280,15 @@
 		}
 	}
 
+	// This function is used when the thread ID is updated in FileMaker and needs to be updated for the current 
+	// ChatLog object in the webviewer. FileMaker can call this function with the new thread ID, and the ChatLog
+	// object will be set with the passed in ID
 	var updateThreadID = (threadID: string) => {
 		chatLogRef.value.setId(threadID);
 	}
 
+	// This is the animation code for the bouncing ellipsis when waiting for an AI response. It is invoked after
+	// a user submits a prompt.	
 	var loadingAnimation = () => {
 		var tl = gsap.timeline({ repeat: -1 });
 		tl.to(".ellipsis", {
@@ -254,12 +306,15 @@
 	onMounted(() => {
 		renderChatLogs();
 		
+		// Adding an event listener for the "Enter" key so users can simply click that rather than
+		// having to manually click the submit prompt button each time they want to submit a prompt
 		window.addEventListener("keydown", (event) => {
 			if (event.code === "Enter") { 
 				submitPrompt();
 			}
 		});
 
+		// below is used for dev purposes
 		// loadMessageThreads(historicalThreads, []);
 
 		// On the inital page load, animate the text in the sidebar
@@ -929,7 +984,6 @@
 		display: flex;
 		max-height: 100vh;
 		max-width: 100vw;
-		// padding: 0 1rem;
 		gap: 3rem;
 		background-color: var(--raisin-black);
 
@@ -939,10 +993,8 @@
 			padding: 0.5rem;
 			width: 20%;
 			height: calc(100vh - 1rem);
-			// border-radius: 0.75rem;
 			border-right: 1px solid black;
 			background-color: var(--dark-gunmetal); 
-			// box-shadow: 0 0 10px 1px black;
 			overflow-y: scroll;
 
 			.chat-log-container {
@@ -1012,9 +1064,7 @@
 			padding: 1rem 0 2rem 0;
 			margin-right: 1rem;
 			width: calc(100vw - 20%);
-			// box-shadow: 0 0 10px 1px black;
 			border-radius: 0.75rem;
-			// background-color: var(--light-black);
 			background-color: var(--raisin-black);
 
 			.chat-window {
@@ -1111,6 +1161,17 @@
 							margin-left: -16px;
 						}
 					}
+
+					.mermaid-graph-bubble {
+						min-width: 50vw !important;
+						max-width: 60vw !important;
+
+						.mermaid-graph {
+							background-color: white;
+							width: 100%;
+							border-radius: 0.1rem;
+						}
+					}
 				}
 
 				
@@ -1121,7 +1182,6 @@
 				flex-direction: row;
 				align-items: center;
 				position: absolute;
-				// bottom: 2rem;
 				bottom: 1rem;
 				width: calc(80% - 6rem);
 				height: 50px;
@@ -1138,7 +1198,6 @@
 					padding: 0 1rem;
 					background-color: var(--dark-gunmetal);
 					color: lightgray;
-					// color: black;
 
 					&:focus-visible {
 						outline: none;
