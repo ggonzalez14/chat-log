@@ -1,17 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap');
+
 :root {
     --raisin-black: #202026;
     --dark-gunmetal: #25242A;
     --light-black: #1E1F24;
 
-    --fmq-blue: #0860C8;
-    --fmq-dark-blue: #0049A0;
-    
-    /* --raisin-black: #fff;
-    --dark-gunmetal: #fff;
-    --light-black: #fff; */
-
     * {
         margin: 0;
+        font-family: "Quicksand", sans-serif;
+        font-weight: 400;
+        font-style: normal;
     }
 
 }

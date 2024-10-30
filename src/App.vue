@@ -13,6 +13,7 @@
 			<!-- Add functionality for clicking on the message thread that will open the correct one and set the -->
 			<!-- correct IDs in FileMaker as well, maintaining consistency between the webviewer and FileMaker backend -->
 			<div class="chat-log-container">
+				<span v-if="messageThreads.length === 0" class="sidebar-placeholder-text">Nothing to Display!</span>
 				<span v-for="(chatLog, index) in messageThreads" class="chat-log" @click="openChatLog(index, chatLog.getId())">
 					{{ chatLog.getChatTitle() }}
 				</span>
@@ -25,13 +26,13 @@
 
 				<!-- Show this if there is no chat history -->
 				<span v-if="chatHistory && chatHistory.length === 0" class="placeholder-text">
-					Submit a message!
+					Submit a Message!
 				</span>
 
 				<!-- Show this as soon as there is any kind of chat history -->
 				<div class="chat-bubble-container"
 					v-else
-					v-for="chat in chatHistory" 
+					v-for="(chat, index) in chatHistory" 
 				>
 					<!-- User icon on right side of chat window -->
 					<img v-if="chat.role === 'assistant' || chat.role === 'loading' || chat.role === 'mermaid'" src="/src/assets/icons/ai-chat-icon-lightgray.png" class="ai-chat-icon"/>
@@ -52,7 +53,7 @@
 						</span>
 
 						<!-- Display the mermaid graph if that is what is passed in via the assistant -->
-						<pre v-if="chat.isMermaid" class="mermaid mermaid-graph">
+						<pre v-if="chat.isMermaid" :id="'graph-' + index" class="mermaid mermaid-graph" @click="downloadMermaidGraph(index)">
 							{{ chat.content }}
 						</pre>
 					</span>
@@ -81,15 +82,13 @@
 	import { TextPlugin } from 'gsap/TextPlugin'; /* Plugin from GSAP that will give the "typing" animation when the AI responds */
 	import { ChatLog } from './utility/chatLog'; /* Class that holds information about each message thread / history */
 	import type { ChatJSON } from './utility/typeInterfaceDefinitions'; /* Custom JSON object definition */
-	
+
 	// use dynamic import for mermaid since vite + terser didn't play nice with the static import
 	(async () => {
 		// @ts-ignore
-		const { mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs").then(() => {mermaid.initialize({ startOnLoad: true })});
+		var { mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");
 	})();
 	gsap.registerPlugin(TextPlugin);
-
-	
 
 	// ---------- Use the below json object as a reference on how I imagined the mermaid package would be passed in
 	// ---------- The content should just be a string utilizing \t and \n if possible. It might be fine without that too
@@ -102,14 +101,23 @@
 	}
 	*/
 
-	/*
 	// This is for dev purposes
-	var chatLogRef = ref<ChatLog>(new ChatLog([{
-		role: "assistant", 
-		content: `sequenceDiagram\n\tparticipant Alice\n\tparticipant Bob\n\tAlice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Alice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!`,
-		isMermaid: true // Can be "true" or 1
-	}])); 	
-	*/
+	// var chatLogRef = ref<ChatLog>(new ChatLog([
+	// 	{
+	// 		role: "assistant", 
+	// 		content: `sequenceDiagram\n\tparticipant Janice\n\tparticipant Jeremy\n\Janice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Janice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!`,
+	// 		isMermaid: true // Can be "true" or 1
+	// 	},
+	// 	{
+	// 		role: "user", 
+	// 		content: "Test"
+	// 	},
+	// 	{
+	// 		role: "assistant", 
+	// 		content: `sequenceDiagram\n\tparticipant Alice\n\tparticipant Bob\n\tAlice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Alice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!`,
+	// 		isMermaid: true // Can be "true" or 1
+	// 	}
+	// ])); 	
 	var chatLogRef = ref<ChatLog>(new ChatLog([])); /* Currently Displayed Chatlog object */
 	var chatWindow = ref<HTMLElement>(); /* Ref for the chat window HTML element */
 	var chatHistory = ref<ChatJSON[]>(); /* All messages that have been send or received for the current Chat Log */
@@ -117,6 +125,18 @@
 	var messageThreadIDs = ref<string[]>([]);
 	var userInput = ref<string>(""); /* User input reference */
 	var loadingAIResponse = ref<boolean>(false); /* Flag that is used for the bouncing ellipsis animation */
+
+	var downloadMermaidGraph = (index: number) => {
+		var svgElement = document.getElementById("graph-" + index)?.querySelector('svg');
+
+		// @ts-ignore
+		var svgData = new XMLSerializer().serializeToString(svgElement);
+		var encodedData = new TextEncoder().encode(svgData);
+		var base64Data = btoa(String.fromCharCode(...encodedData));
+		
+		// @ts-ignore
+		FileMaker.PerformScript("System - Download Mermaid Graph", JSON.stringify({graphEncoded: base64Data}));
+	}
 
 	var createNewChat = () => {
 		// Check to see if the current chatlog history has been added to the sidebar, if not, then add it
@@ -130,19 +150,8 @@
 			setTimeout(() => {
 				var threads = document.querySelectorAll(".chat-log");
 				var elementToAnimate = threads[threads.length - 1];
-				gsap.fromTo(elementToAnimate, {
-						duration: 0,
-						text: {
-							value: ""
-						}
-					},
-					{
-						duration: 1,
-						text: {
-							value: chatTitle
-						}
-					}
-				);
+				textAnimation(elementToAnimate, chatTitle);
+				textAnimation(".placeholder-text", "Submit a Message!");
 			}, 1);
 		}
 		chatHistory.value = [];
@@ -212,20 +221,7 @@
 			setTimeout(() => {
 				var threads = document.querySelectorAll(".chat-log");
 				var elementToAnimate = threads[threads.length - 1];
-				gsap.fromTo(elementToAnimate, {
-						duration: 0,
-						text: {
-							value: ""
-						}
-					},
-					{
-						duration: 1,
-						ease: "none",
-						text: {
-							value: chatTitle
-						}
-					}
-				);
+				textAnimation(elementToAnimate, chatTitle);
 			}, 1);
 		}
 
@@ -246,23 +242,11 @@
 		setTimeout(() => {
 				var chats = document.querySelectorAll(".ai-response");
 				var elementToAnimate = chats[chats.length - 1];
-				gsap.fromTo(elementToAnimate, {
-						duration: 0,
-						text: {
-							value: ""
-						}
-					},
-					{
-						duration: 1,
-						text: {
-							value: message
-						},
-						onComplete: () => {
-							var elements = document.querySelectorAll(".ai-response");
-							elements[elements.length - 1].scrollIntoView({ behavior: "smooth" });
-						}
-					}
-				);
+				var callback = () => {
+					var elements = document.querySelectorAll(".ai-response");
+					elements[elements.length - 1].scrollIntoView({ behavior: "smooth" });
+				}
+				textAnimation(elementToAnimate, message, callback);
 		}, 1);
 	}
 
@@ -303,6 +287,45 @@
 		});
 	}
 
+	// This function is the core of the "typing" animation. The same code is used throughout the app multiple times
+	// so I put it into a function
+	var textAnimation = (elementToAnimate: string | Element, textContent: string, callbackFn?: () => void) => {
+		if (callbackFn) {
+			gsap.fromTo(elementToAnimate, {
+						duration: 0,
+						text: {
+							value: ""
+						}
+					},
+					{
+						duration: 1,
+						ease: "none",
+						text: {
+							value: textContent
+						},
+						onComplete: () => callbackFn()
+					}
+				);
+		} else {
+			gsap.fromTo(elementToAnimate, {
+					duration: 0,
+					text: {
+						value: ""
+					}
+				},
+				{
+					duration: 1,
+					ease: "none",
+					text: {
+						value: textContent
+					}
+				}
+			);
+		}
+
+		
+	}
+
 	onMounted(() => {
 		renderChatLogs();
 		
@@ -314,28 +337,14 @@
 			}
 		});
 
+		setTimeout(() => {
+			textAnimation(".placeholder-text", "Submit a Message!");
+			textAnimation(".sidebar-placeholder-text", "Nothing to Display");
+		}, 100);
+
+
 		// below is used for dev purposes
 		// loadMessageThreads(historicalThreads, []);
-
-		// On the inital page load, animate the text in the sidebar
-		setTimeout(() => {
-			var chatLogs = document.querySelectorAll(".chat-log");
-			chatLogs.forEach((chatLog, index) => {
-				gsap.fromTo(chatLog, 
-				{
-					duration: 0,
-					text: {
-						value: ""
-					}
-				},
-				{
-					duration: 1,
-					text: {
-						value: messageThreads.value[index].getChatTitle()
-					}
-				});
-			});
-		}, 1);
 	});
 
 	defineExpose({
@@ -996,6 +1005,7 @@
 			border-right: 1px solid black;
 			background-color: var(--dark-gunmetal); 
 			overflow-y: scroll;
+			
 
 			.chat-log-container {
 				display: flex;
@@ -1003,6 +1013,10 @@
 				margin: 1rem 0;
 				gap: 0.25rem;
 				overflow-y: scroll;
+				
+				&::-webkit-scrollbar {
+					display: none;
+				}
 
 				.chat-log {
 					min-height: 18px;
@@ -1022,6 +1036,15 @@
 						color: black;
 						opacity: 0.75;
 					}
+				}
+
+				.sidebar-placeholder-text {
+					display: flex;
+					align-self: center;
+					margin: auto 0;
+					text-align: center;
+					font-size: 16px;
+					color: lightgray;
 				}
 			}
 
@@ -1071,11 +1094,15 @@
 				display: flex;
 				flex-direction: column;
 				position: relative;
-				height: calc(100vh - 5rem - 50px);
+				height: calc(100vh - 3.5rem - 50px);
 				width: 100%;
 				gap: 0.5rem;
 				border-bottom: none;
 				overflow: scroll;
+				
+				&::-webkit-scrollbar {
+					display: none;
+				}
 
 				.placeholder-text {
 					display: flex;
@@ -1170,6 +1197,10 @@
 							background-color: white;
 							width: 100%;
 							border-radius: 0.1rem;
+
+							&:hover {
+								cursor: pointer;
+							}
 						}
 					}
 				}
@@ -1198,6 +1229,7 @@
 					padding: 0 1rem;
 					background-color: var(--dark-gunmetal);
 					color: lightgray;
+					font-size: 16px;
 
 					&:focus-visible {
 						outline: none;
