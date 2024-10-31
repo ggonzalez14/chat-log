@@ -3,4 +3,5 @@ export interface ChatJSON {
     content: string;
     name?: string;
     isMermaid?: boolean;
+    id?: string;
 }

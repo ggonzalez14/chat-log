@@ -65,7 +65,7 @@ export class ChatLog {
         // however, we don't want to do that so that's what the secondary check is
         // Basically, check if we're waiting on the AI response, and if so + the last message in the history
         // is not from the user, then drop that message and replace it with the AI response
-        if (!isLoading && this.chatHistory[this.chatHistory.length - 1].role !== "user") {
+        if (!isLoading && this.chatHistory[this.chatHistory.length - 1].role === "loading") {
             this.chatHistory.pop();
         }
         this.chatHistory.push(response);
