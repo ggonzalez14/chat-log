@@ -96,34 +96,6 @@
 	})();
 	gsap.registerPlugin(TextPlugin);
 
-	// ---------- Use the below json object as a reference on how I imagined the mermaid package would be passed in
-	// ---------- The content should just be a string utilizing \t and \n if possible. It might be fine without that too
-	/*
-
-	{
-		role: "assistant", 
-		content: `sequenceDiagram\n\tparticipant Alice\n\tparticipant Bob\n\tAlice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Alice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!`,
-		isMermaid: true // Can be "true" or 1
-	}
-	*/
-
-	// This is for dev purposes
-	// var chatLogRef = ref<ChatLog>(new ChatLog([
-	// 	{
-	// 		role: "assistant", 
-	// 		content: `sequenceDiagram\n\tparticipant Janice\n\tparticipant Jeremy\n\Janice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Janice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!`,
-	// 		isMermaid: true // Can be "true" or 1,
-	// 	},
-	// 	{
-	// 		role: "user", 
-	// 		content: "Test"
-	// 	},
-	// 	{
-	// 		role: "assistant", 
-	// 		content: `sequenceDiagram\n\tparticipant Alice\n\tparticipant Bob\n\tAlice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Alice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!`,
-	// 		isMermaid: true // Can be "true" or 1
-	// 	}
-	// ])); 	
 	var chatLogRef = ref<ChatLog>(new ChatLog([])); /* Currently Displayed Chatlog object */
 	var chatWindow = ref<HTMLElement>(); /* Ref for the chat window HTML element */
 	var chatHistory = ref<ChatJSON[]>(); /* All messages that have been send or received for the current Chat Log */
@@ -219,10 +191,6 @@
 		setTimeout(() => {
 			loadingAnimation();
 		}, 100);
-
-		// setTimeout(() => {
-		// 	addMessage("sequenceDiagram\n\tparticipant Alice\n\tparticipant Bob\n\tAlice->>John: Hello John, how are you?\n\tloop Healthcheck\n\t\tJohn->>John: Fight against hypochondria\n\tend\n\tNote right of John: Rational thoughts <br/>prevail...\n\tJohn-->>Alice: Great!\n\tJohn->>Bob: How about you?\n\tBob-->>John: Jolly good!", "assistant", 1)
-		// }, 3000);
     }
 
 	var openChatLog = (index: number, chatId: string) => {
@@ -241,7 +209,6 @@
 			// Basically this is only activated if the current chat is a new chat and has not been added to the sidebar yet
 			setTimeout(() => {
 				var threads = document.querySelectorAll(".chat-log");
-				// var elementToAnimate = threads[threads.length - 1];
 				var elementToAnimate = threads[0];
 				textAnimation(elementToAnimate, chatTitle);
 			}, 1);
