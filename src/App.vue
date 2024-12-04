@@ -152,14 +152,17 @@
 		// Check to see if the current chatlog history has been added to the sidebar, if not, then add it
 		if (!messageThreads.value.includes(chatLogRef.value)){
 			var chatTitle = chatLogRef.value.getChatTitle();
-			messageThreads.value.push(chatLogRef.value);
-			messageThreadIDs.value.push(chatLogRef.value.getId());
+			messageThreads.value.unshift(chatLogRef.value);
+			messageThreadIDs.value.unshift(chatLogRef.value.getId());
+			// messageThreads.value.push(chatLogRef.value);
+			// messageThreadIDs.value.push(chatLogRef.value.getId());
 
 			// Wait for DOM to re-render, then grab most recently added chat log and animate the text
 			// This is the "typing" animation that is activated when a chat thread is added to the sidebar
 			setTimeout(() => {
 				var threads = document.querySelectorAll(".chat-log");
-				var elementToAnimate = threads[threads.length - 1];
+				// var elementToAnimate = threads[threads.length - 1];
+				var elementToAnimate = threads[0];
 				textAnimation(elementToAnimate, chatTitle);
 				textAnimation(".placeholder-text", "Submit a Message!");
 			}, 1);
@@ -228,15 +231,18 @@
 		// there is a chat history, then add it to the sidebar
 		if (!messageThreads.value.includes(chatLogRef.value) && chatLogRef.value.getChatTitle() !== "New Thread") {
 			var chatTitle = chatLogRef.value.getChatTitle();
-			messageThreads.value.push(chatLogRef.value);
-			messageThreadIDs.value.push(chatLogRef.value.getId());
+			messageThreads.value.unshift(chatLogRef.value);
+			messageThreadIDs.value.unshift(chatLogRef.value.getId());
+			// messageThreads.value.push(chatLogRef.value);
+			// messageThreadIDs.value.push(chatLogRef.value.getId());
 			
 			// Wait for DOM to re-render, then grab most recently added chat log and animate the text
 			// This is the "typing" animation that is activated when a chat thread is added to the sidebar
 			// Basically this is only activated if the current chat is a new chat and has not been added to the sidebar yet
 			setTimeout(() => {
 				var threads = document.querySelectorAll(".chat-log");
-				var elementToAnimate = threads[threads.length - 1];
+				// var elementToAnimate = threads[threads.length - 1];
+				var elementToAnimate = threads[0];
 				textAnimation(elementToAnimate, chatTitle);
 			}, 1);
 		}
